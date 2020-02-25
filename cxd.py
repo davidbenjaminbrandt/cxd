@@ -2,6 +2,7 @@ import laspy
 from pyflann import *
 import numpy as np
 import math as m
+import os
 
 
 def readAndTransformFile(filePath):
@@ -34,10 +35,8 @@ def runLasFileDiff(fileOnePath, fileTwoPath):
 
 def processFlannIndices(primaryPts, neighborPts):
 
-    distArray = np.array([], dtype='uint16')
     flann = FLANN()
     fParams = flann.build_index(primaryPts, target_precision=0.95, checks=-1)  # the "checks=-1" allows for all results to be returned
-
     ptIndex, ptDist = flann.nn(neighborPts, primaryPts, num_neighbors=1)
     ptSqrtDist = np.sqrt(ptDist) * 100
     ptSqrtDist.astype('uint16')
@@ -45,10 +44,27 @@ def processFlannIndices(primaryPts, neighborPts):
     return ptSqrtDist
 
 
+def compareAndProcessDirs(beforeFolder, afterFolder):
+    barIndex = 0
+    fileLen = len(os.listdir(beforeFolder))
+    progBar = progress.ProgressBar(max_value=fileLen)
+    with progBar as bar:
+        for fileB in os.listdir(beforeFolder):
+            if fileB.endswith(".las"):
+                for fileA in os.listdir(afterFolder):
+                    if fileA == fileB:
+                        inPathB = beforeFolder + "/" + fileB
+                        inPathA = afterFolder + "/" + fileA
+
+                        runLasFileDiff(inPathB, inPathA)
+
+
 if __name__ == "__main__":
     import argparse as ap
+    parser = ap.ArgumentParser(description='Merge and Process outputs / XMLs from the KrPano undistort process')
 
-    file1 = "/home/davidbenjaminbrandt/PROJECTS/cxd/testData/treeSpeciesLarge.las"
-    file2 = "/home/davidbenjaminbrandt/PROJECTS/cxd/testData/treeSpeciesLarge_new.las"
+    inputGroup = parser.add_argument_group(title='File inputs')
+    inputGroup.add_argument('-bi', dest='beforeFolder', required=True, help='input directory path to the "before" pointcloud tiles.  LAS files only.')
+    inputGroup.add_argument('-ai', dest='afterFolder', required=True, help='input directory path to the "after" pointcloud tiles.  LAS files only.')
 
-    runLasFileDiff(file1, file2)
+    compareAndProcessDirs(beforeFolder, afterFolder)
